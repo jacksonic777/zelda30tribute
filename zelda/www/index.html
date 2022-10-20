@@ -1,312 +1,314 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Zelda 30 Year Tribute</title>
-<link REL="shortcut icon" HREF="img/favicon.gif" TYPE="image/x-icon">
-<link rel="icon" sizes="192x192" href="img/icon-mobile-192.png">
-<link rel="apple-touch-icon" href="img/icon-mobile.png">
-<link rel="apple-touch-icon" sizes="72x72" href="img/icon-mobile.png">
-<link rel="apple-touch-icon" sizes="114x114" href="img/icon-mobile.png">
-<link REL="apple-touch-icon" sizes="144x144" HREF="img/icon-mobile.png">
-<meta name="apple-mobile-web-app-title" content="Zelda Tribute">
-<meta name="application-name" content="Zelda Tribute">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0, maximum-scale=1.0,user-scalable=no">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="language" content="en" />
-<meta name="description" content="A fan tribute to the greatest console game of all time, the NES Legend of Zelda.
+    <title>Zelda 30 Year Tribute</title>
+    <link REL="shortcut icon" HREF="img/favicon.gif" TYPE="image/x-icon">
+    <link rel="icon" sizes="192x192" href="img/icon-mobile-192.png">
+    <link rel="apple-touch-icon" href="img/icon-mobile.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="img/icon-mobile.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="img/icon-mobile.png">
+    <link REL="apple-touch-icon" sizes="144x144" HREF="img/icon-mobile.png">
+    <meta name="apple-mobile-web-app-title" content="Zelda Tribute">
+    <meta name="application-name" content="Zelda Tribute">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0, maximum-scale=1.0,user-scalable=no">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="language" content="en" />
+    <meta name="description" content="A fan tribute to the greatest console game of all time, the NES Legend of Zelda.
 This open source project uses WebGL and voxels rendering to create a pixel-perfect replica of the original, all in Javascript."></meta>
-<meta name="keywords" content="Legend of Zelda,Zelda,Tribute,30,Thirty,Voxel,WebGL"></meta>
-<meta property="og:title" content="Zelda 30 Year Tribute" />
-<meta property="og:site_name" content="Zelda 30 Year Tribute" />
-<meta property="og:description" content="A fan tribute to the greatest console game of all time, the NES Legend of Zelda.
+    <meta name="keywords" content="Legend of Zelda,Zelda,Tribute,30,Thirty,Voxel,WebGL" />
+    <meta property="og:title" content="Zelda 30 Year Tribute" />
+    <meta property="og:site_name" content="Zelda 30 Year Tribute" />
+    <meta property="og:description" content="A fan tribute to the greatest console game of all time, the NES Legend of Zelda.
 This open source project uses WebGL and voxels rendering to create a pixel-perfect replica of the original, all in Javascript." />
-<meta property="og:url" content="http://zelda30tribute.com" />
-<meta property="og:image" content="http://zelda30tribute.com/img/logo-share.png" />
+    <meta property="og:url" content="http://zelda30tribute.com" />
+    <meta property="og:image" content="http://zelda30tribute.com/img/logo-share.png" />
+    <!-- 頂点シェーダー -->
+    <script id="vshader" type="x-shader/x-vertex">
+        //WebGL GLSL - 頂点計算を行う「頂点シェーダー」
+        #ifdef GL_ES
+        precision highp float;
+        #endif
 
-<script id="vshader" type="x-shader/x-vertex">
-#ifdef GL_ES
-precision highp float;
-#endif
+        attribute vec3 aPosition;
+        attribute vec3 aNormal;
 
-attribute vec3 aPosition;
-attribute vec3 aNormal;
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec3 vWorldPosition;
+        varying float vFrontLightingFactor;
+        varying float vBackLightingFactor;
 
-varying vec3 vNormal;
-varying vec3 vPosition;
-varying vec3 vWorldPosition;
-varying float vFrontLightingFactor;
-varying float vBackLightingFactor;
+        uniform mat4 uOffset;
+        uniform mat4 uMVP;
 
-uniform mat4 uOffset;
-uniform mat4 uMVP;
+        // Vector to the source of the main light.
+        uniform vec3 uLightDirection;
 
-// Vector to the source of the main light.
-uniform vec3 uLightDirection;
+        void main() {
+          vec3 normal = normalize((uOffset * vec4(aNormal, 0.0)).xyz);
+          vec4 position = uMVP * uOffset * vec4(aPosition, 1.0);
+          vNormal = aNormal;
+          gl_Position = position;
+          vPosition = aPosition;
+          vWorldPosition = vec3(uOffset * vec4(aPosition, 1.0));
 
-void main() {
-  vec3 normal = normalize((uOffset * vec4(aNormal, 0.0)).xyz);
-  vec4 position = uMVP * uOffset * vec4(aPosition, 1.0);
-  vNormal = aNormal;
-  gl_Position = position;
-  vPosition = aPosition;
-  vWorldPosition = vec3(uOffset * vec4(aPosition, 1.0));
+          vFrontLightingFactor = -0.2 + acos(dot(uLightDirection, normal)) / 3.0;
+          vec3 backLightDirection = -uLightDirection;
+          vBackLightingFactor = -0.2 + acos(dot(backLightDirection, normal)) / 3.0;
+        }
 
-  vFrontLightingFactor = -0.2 + acos(dot(uLightDirection, normal)) / 3.0;
-  vec3 backLightDirection = -uLightDirection;
-  vBackLightingFactor = -0.2 + acos(dot(backLightDirection, normal)) / 3.0;
-}
+    </script>
+    <!-- WebGL ピクセル単位の描画色を計算する「フラグメントシェーダー」 -->
+    <script id="fshader" type="x-shader/x-fragment">
+        #ifdef GL_ES
+        precision highp float;
+        #endif
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying vec3 vWorldPosition;
+        varying float vFrontLightingFactor;
+        varying float vBackLightingFactor;
 
-</script>
-<script id="fshader" type="x-shader/x-fragment">
-#ifdef GL_ES
-precision highp float;
-#endif
-varying vec3 vNormal;
-varying vec3 vPosition;
-varying vec3 vWorldPosition;
-varying float vFrontLightingFactor;
-varying float vBackLightingFactor;
+        float VOXEL_SPRITE_CANVAS_WIDTH = 4096.0;
+        float VOXEL_SPRITE_CANVAS_HEIGHT = 2048.0;
+        float VOXEL_SPRITE_SIZE = 16.0;
+        float VOXEL_SPRITE_PADDING = 1.0;
+        float VOXEL_SPRITE_SIZE_WITH_PADDING = VOXEL_SPRITE_SIZE + VOXEL_SPRITE_PADDING;
+        float xPixelSize = 1.0 / VOXEL_SPRITE_CANVAS_WIDTH;
+        float yPixelSize = 1.0 / VOXEL_SPRITE_CANVAS_HEIGHT;
+        float xHalfPixelSize = xPixelSize / 2.0;
+        float yHalfPixelSize = yPixelSize / 2.0;
+        float xSpritePixelSize = xPixelSize * VOXEL_SPRITE_SIZE_WITH_PADDING;
+        float ySpritePixelSize = yPixelSize * VOXEL_SPRITE_SIZE_WITH_PADDING;
+        float xSpriteStripWidth = xSpritePixelSize * VOXEL_SPRITE_SIZE_WITH_PADDING;
+        float xStripsPerRow = floor(1.0 / xSpriteStripWidth);
+        float OVERWORLD_HEIGHT = 1408.0;
+        float OVERWORLD_WIDTH = 4096.0;
 
-float VOXEL_SPRITE_CANVAS_WIDTH = 4096.0;
-float VOXEL_SPRITE_CANVAS_HEIGHT = 2048.0;
-float VOXEL_SPRITE_SIZE = 16.0;
-float VOXEL_SPRITE_PADDING = 1.0;
-float VOXEL_SPRITE_SIZE_WITH_PADDING = VOXEL_SPRITE_SIZE + VOXEL_SPRITE_PADDING;
-float xPixelSize = 1.0 / VOXEL_SPRITE_CANVAS_WIDTH;
-float yPixelSize = 1.0 / VOXEL_SPRITE_CANVAS_HEIGHT;
-float xHalfPixelSize = xPixelSize / 2.0;
-float yHalfPixelSize = yPixelSize / 2.0;
-float xSpritePixelSize = xPixelSize * VOXEL_SPRITE_SIZE_WITH_PADDING;
-float ySpritePixelSize = yPixelSize * VOXEL_SPRITE_SIZE_WITH_PADDING;
-float xSpriteStripWidth = xSpritePixelSize * VOXEL_SPRITE_SIZE_WITH_PADDING;
-float xStripsPerRow = floor(1.0 / xSpriteStripWidth);
-float OVERWORLD_HEIGHT = 1408.0;
-float OVERWORLD_WIDTH = 4096.0;
+        float dungeonPixelSize = 1.0 / 2048.0;
 
-float dungeonPixelSize = 1.0 / 2048.0;
+        float LIGHT_MAP_CANVAS_WIDTH = 256.0;
+        float LIGHT_MAP_CANVAS_HEIGHT = 256.0;
+        float LIGHT_MAP_UV_PER_PIXEL = 1.0 / 512.0;
+        float LIGHT_MAP_UV_PER_HALF_PIXEL = 0.5 / 512.0;
 
-float LIGHT_MAP_CANVAS_WIDTH = 256.0;
-float LIGHT_MAP_CANVAS_HEIGHT = 256.0;
-float LIGHT_MAP_UV_PER_PIXEL = 1.0 / 512.0;
-float LIGHT_MAP_UV_PER_HALF_PIXEL = 0.5 / 512.0;
+        uniform sampler2D uSpriteSampler;
+        uniform sampler2D uLightSampler;
+        uniform sampler2D uDungeonSampler;
+        uniform float uSpriteId;
+        uniform vec3 uAvatarRoomOrigin;
+        uniform float uRenderNegativeColor;
 
-uniform sampler2D uSpriteSampler;
-uniform sampler2D uLightSampler;
-uniform sampler2D uDungeonSampler;
-uniform float uSpriteId;
-uniform vec3 uAvatarRoomOrigin;
-uniform float uRenderNegativeColor;
+        vec2 getSpriteBaseUV(float id) {
+          vec2 uv;
+          float gridY = floor((id + .001) / xStripsPerRow);
+          float gridX = id - (gridY * xStripsPerRow);
+          uv[0] = xSpriteStripWidth * gridX;
+          uv[1] = 1.0 - (ySpritePixelSize * (gridY) + ySpritePixelSize);
+          return uv;
+        }
 
-vec2 getSpriteBaseUV(float id) {
-  vec2 uv;
-  float gridY = floor((id + .001) / xStripsPerRow);
-  float gridX = id - (gridY * xStripsPerRow);
-  uv[0] = xSpriteStripWidth * gridX;
-  uv[1] = 1.0 - (ySpritePixelSize * (gridY) + ySpritePixelSize);
-  return uv;
-}
+        void main() {
+          vec3 pos = vPosition;
+          float lightingFactor = vBackLightingFactor;
+          if (gl_FrontFacing) {
+            pos -= vNormal;
+            lightingFactor = vFrontLightingFactor;
+          }
 
-void main() {
-  vec3 pos = vPosition;
-  float lightingFactor = vBackLightingFactor;
-  if (gl_FrontFacing) {
-    pos -= vNormal;
-    lightingFactor = vFrontLightingFactor;
-  }
-
-  if (uSpriteId == -1.0) {
-    
-    
-    
-    if (vWorldPosition.z > -100.0) {
-      float mapX = pos.x;
-      float mapY = pos.y;
-      
-      // Use water if we're off the map.
-      if (vWorldPosition.y < 0.0 || vWorldPosition.x < 0.0 ||
-          vWorldPosition.x > 4096.0 || vWorldPosition.y > 1408.0) {
-        //gl_FragColor = vec4(32.0/255.0, 56.0/255.0, 236.0/255.0, 1.0);
-        mapX = mod(vWorldPosition.x, 16.0) - 32.0;
-        mapY = mod(vWorldPosition.y, 16.0);
-      }
-
-		  float u = mapX * xPixelSize;
-	    float v = mapY * yPixelSize;
-      float dz = (pos.z - floor(pos.z / 16.0) * 16.0);
-      u = u + (vNormal.x * dz) * xPixelSize;
-      v = v + (vNormal.y * dz) * yPixelSize;
-      
-      gl_FragColor = vec4(texture2D(uSpriteSampler, vec2(u, v)).rgb, 1.0);
-    } else {
-      float mapX = vWorldPosition.x;
-      float mapY = vWorldPosition.y;
-      float u = mapX * dungeonPixelSize;
-      float v = mapY * dungeonPixelSize;
-      gl_FragColor = texture2D(uDungeonSampler, vec2(u, v));
-    }
-  } else {
-    float x = pos.x;
-    float y = pos.z;
-    float z = VOXEL_SPRITE_SIZE - pos.y;
-
-    float fx = floor(x + 0.0002);
-    float fy = floor(y + 0.0002);
-    float fz = floor(z + 0.0002);
-
-    vec2 uv = getSpriteBaseUV(uSpriteId);
-    uv[0] += fx * xPixelSize + xHalfPixelSize;
-    uv[0] += fz * xSpritePixelSize;
-    uv[1] += fy * yPixelSize + yHalfPixelSize;
-  
-    gl_FragColor = texture2D(uSpriteSampler, uv);  
-  }
-  
-  if (uRenderNegativeColor > 0.5) {
-    gl_FragColor.rgb = vec3(1.8) - gl_FragColor.bgr;
-  }
-  
-  gl_FragColor.rgb -= vec3(lightingFactor);
+          if (uSpriteId == -1.0) {
 
 
-  if (gl_FragColor.a < .01) {
-    discard;
-  }
 
-	// Overworld hard shadows.
-	float shadowHeight = 9000.0;
-	if (vWorldPosition.z > -100.0) {
-		float u2 = (vWorldPosition.x - 1.1) * xPixelSize;
-		float v2 = (vWorldPosition.y - 1.1) * yPixelSize;
-		float alpha = texture2D(uSpriteSampler, vec2(u2, v2)).a;
-		float alphaQuantized = ceil(alpha * 255.0);
-		shadowHeight = 464.0 - (alphaQuantized * 2.0) - 0.1;
-		if (vWorldPosition.z < shadowHeight && shadowHeight < 463.0) {
-			gl_FragColor.rgb -= vec3(0.3,0.3,0.3);
-			gl_FragColor.r = floor(gl_FragColor.r * 8.0) / 8.0;
-			gl_FragColor.g = floor(gl_FragColor.g * 8.0) / 8.0;
-			gl_FragColor.a = 1.0;
-		}
-	}
+            if (vWorldPosition.z > -100.0) {
+              float mapX = pos.x;
+              float mapY = pos.y;
 
-  // We apply the lighting map to everything in the underworld, or just the
-  // terrain in the overworld.
-  //if (vWorldPosition.z <= (shadowHeight - 1.0) || vWorldPosition.y < -1000.0) {
-		vec3 gridPos = vWorldPosition;
-		float lightX = vWorldPosition.x - uAvatarRoomOrigin.x;
-		float lightY = vWorldPosition.y - uAvatarRoomOrigin.y;
-		vec2 lightUv = vec2(0.25 + lightX * LIGHT_MAP_UV_PER_PIXEL - LIGHT_MAP_UV_PER_HALF_PIXEL,
-												0.25 + lightY * LIGHT_MAP_UV_PER_PIXEL + LIGHT_MAP_UV_PER_HALF_PIXEL);
-		vec3 color = vec3(texture2D(uLightSampler, lightUv));
-		color = (color - 0.5) * 2.2;
-		gl_FragColor.rgb += color;
-  //}
-}
+              // Use water if we're off the map.
+              if (vWorldPosition.y < 0.0 || vWorldPosition.x < 0.0 ||
+                  vWorldPosition.x > 4096.0 || vWorldPosition.y > 1408.0) {
+                //gl_FragColor = vec4(32.0/255.0, 56.0/255.0, 236.0/255.0, 1.0);
+                mapX = mod(vWorldPosition.x, 16.0) - 32.0;
+                mapY = mod(vWorldPosition.y, 16.0);
+              }
 
-</script>
-<script src="js/util/gl-matrix.js"></script>
-<script src="js/util/fullscreen.js"></script>
-<script src="js/ace.js"></script>
-<script src="js/game.js"></script>
-<script src="js/util/soundmanager2.js"></script>
-<script src="js/util/soundmanager2_settings.js"></script>
-<script src="js/enginevoxel.js"></script>
-<script src="js/overworldbuffer.js"></script>
+                  float u = mapX * xPixelSize;
+                float v = mapY * yPixelSize;
+              float dz = (pos.z - floor(pos.z / 16.0) * 16.0);
+              u = u + (vNormal.x * dz) * xPixelSize;
+              v = v + (vNormal.y * dz) * yPixelSize;
 
-<script src="dungeons/room.js"></script>
-<script src="dungeons/dungeon.js"></script>
-<script src="dungeons/dungeon1.js"></script>
-<script src="dungeons/dungeon2.js"></script>
-<script src="dungeons/dungeon3.js"></script>
-<script src="dungeons/dungeon4.js"></script>
-<script src="dungeons/dungeon5.js"></script>
-<script src="dungeons/dungeon6.js"></script>
-<script src="dungeons/dungeon7.js"></script>
-<script src="dungeons/dungeon8.js"></script>
-<script src="dungeons/dungeon9.js"></script>
-<script src="dungeons/overworld.js"></script>
+              gl_FragColor = vec4(texture2D(uSpriteSampler, vec2(u, v)).rgb, 1.0);
+            } else {
+              float mapX = vWorldPosition.x;
+              float mapY = vWorldPosition.y;
+              float u = mapX * dungeonPixelSize;
+              float v = mapY * dungeonPixelSize;
+              gl_FragColor = texture2D(uDungeonSampler, vec2(u, v));
+            }
+          } else {
+            float x = pos.x;
+            float y = pos.z;
+            float z = VOXEL_SPRITE_SIZE - pos.y;
 
-<script src="actors/actor.js"></script>
-<script src="actors/enemy.js"></script>
-<script src="actors/avatar.js"></script>
-<script src="actors/flyingsword.js"></script>
-<script src="actors/hurler.js"></script>
-<script src="actors/hurlerrock.js"></script>
-<script src="actors/hurlertough.js"></script>
+            float fx = floor(x + 0.0002);
+            float fy = floor(y + 0.0002);
+            float fz = floor(z + 0.0002);
 
-<script src="actors/aquamentus.js"></script>
-<script src="actors/archer.js"></script>
-<script src="actors/archerarrow.js"></script>
-<script src="actors/archertough.js"></script>
-<script src="actors/boomerang.js"></script>
-<script src="actors/magicalboomerang.js"></script>
-<script src="actors/bomb.js"></script>
-<script src="actors/boulder.js"></script>
-<script src="actors/bow.js"></script>
-<script src="actors/bubble.js"></script>
-<script src="actors/cave.js"></script>
-<script src="actors/caveexit.js"></script>
-<script src="actors/charger.js"></script>
-<script src="actors/chargersword.js"></script>
-<script src="actors/chargertough.js"></script>
-<script src="actors/cloud.js"></script>
-<script src="actors/compass.js"></script>
-<script src="actors/darknut.js"></script>
-<script src="actors/digger.js"></script>
-<script src="actors/diggerblue.js"></script>
-<script src="actors/dodongo.js"></script>
-<script src="actors/fire.js"></script>
-<script src="actors/fireball.js"></script>
-<script src="actors/flyingboomerang.js"></script>
-<script src="actors/gel.js"></script>
-<script src="actors/ghost.js"></script>
-<script src="actors/goriya.js"></script>
-<script src="actors/goriyablue.js"></script>
-<script src="actors/jumper.js"></script>
-<script src="actors/jumpertough.js"></script>
-<script src="actors/keese.js"></script>
-<script src="actors/key.js"></script>
-<script src="actors/kraken.js"></script>
-<script src="actors/lakefairy.js"></script>
-<script src="actors/lakesand.js"></script>
-<script src="actors/lockeddoor.js"></script>
-<script src="actors/manhandla.js"></script>
-<script src="actors/manhandlalimb.js"></script>
-<script src="actors/map.js"></script>
-<script src="actors/moldorm.js"></script>
-<script src="actors/obstacle.js"></script>
-<script src="actors/oldman.js"></script>
-<script src="actors/peahat.js"></script>
-<script src="actors/pushableblock.js"></script>
-<script src="actors/raft.js"></script>
-<script src="actors/raftlaunch.js"></script>
-<script src="actors/roomdarkener.js"></script>
-<script src="actors/rope.js"></script>
-<script src="actors/secretbomb.js"></script>
-<script src="actors/secretheartcontainer.js"></script>
-<script src="actors/secretkey.js"></script>
-<script src="actors/secretrupee.js"></script>
-<script src="actors/stalfos.js"></script>
-<script src="actors/stairs.js"></script>
-<script src="actors/startscreen.js"></script>
-<script src="actors/statue.js"></script>
-<script src="actors/text.js"></script>
-<script src="actors/trap.js"></script>
-<script src="actors/treasure.js"></script>
-<script src="actors/triforcepiece.js"></script>
-<script src="actors/wallmaster.js"></script>
-<script src="actors/water.js"></script>
-<script src="actors/whitebrickroom.js"></script>
-<script src="actors/zol.js"></script>
+            vec2 uv = getSpriteBaseUV(uSpriteId);
+            uv[0] += fx * xPixelSize + xHalfPixelSize;
+            uv[0] += fz * xSpritePixelSize;
+            uv[1] += fy * yPixelSize + yHalfPixelSize;
 
-<script src="actors/barreddoor.js"></script>
-<script src="actors/block.js"></script>
-<script src="actors/bombhole.js"></script>
+            gl_FragColor = texture2D(uSpriteSampler, uv);
+          }
 
-<link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Press+Start+2P'>
+          if (uRenderNegativeColor > 0.5) {
+            gl_FragColor.rgb = vec3(1.8) - gl_FragColor.bgr;
+          }
 
-<script src="js/heightmap.js"></script>
+          gl_FragColor.rgb -= vec3(lightingFactor);
+
+
+          if (gl_FragColor.a < .01) {
+            discard;
+          }
+
+            // Overworld hard shadows.
+            float shadowHeight = 9000.0;
+            if (vWorldPosition.z > -100.0) {
+                float u2 = (vWorldPosition.x - 1.1) * xPixelSize;
+                float v2 = (vWorldPosition.y - 1.1) * yPixelSize;
+                float alpha = texture2D(uSpriteSampler, vec2(u2, v2)).a;
+                float alphaQuantized = ceil(alpha * 255.0);
+                shadowHeight = 464.0 - (alphaQuantized * 2.0) - 0.1;
+                if (vWorldPosition.z < shadowHeight && shadowHeight < 463.0) {
+                    gl_FragColor.rgb -= vec3(0.3,0.3,0.3);
+                    gl_FragColor.r = floor(gl_FragColor.r * 8.0) / 8.0;
+                    gl_FragColor.g = floor(gl_FragColor.g * 8.0) / 8.0;
+                    gl_FragColor.a = 1.0;
+                }
+            }
+
+          // We apply the lighting map to everything in the underworld, or just the
+          // terrain in the overworld.
+          //if (vWorldPosition.z <= (shadowHeight - 1.0) || vWorldPosition.y < -1000.0) {
+                vec3 gridPos = vWorldPosition;
+                float lightX = vWorldPosition.x - uAvatarRoomOrigin.x;
+                float lightY = vWorldPosition.y - uAvatarRoomOrigin.y;
+                vec2 lightUv = vec2(0.25 + lightX * LIGHT_MAP_UV_PER_PIXEL - LIGHT_MAP_UV_PER_HALF_PIXEL,
+                                                        0.25 + lightY * LIGHT_MAP_UV_PER_PIXEL + LIGHT_MAP_UV_PER_HALF_PIXEL);
+                vec3 color = vec3(texture2D(uLightSampler, lightUv));
+                color = (color - 0.5) * 2.2;
+                gl_FragColor.rgb += color;
+          //}
+        }
+
+    </script>
+    <script src="js/util/gl-matrix.js"></script>
+    <script src="js/util/fullscreen.js"></script>
+    <script src="js/ace.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/util/soundmanager2.js"></script>
+    <script src="js/util/soundmanager2_settings.js"></script>
+    <script src="js/enginevoxel.js"></script>
+    <script src="js/overworldbuffer.js"></script>
+
+    <script src="dungeons/room.js"></script>
+    <script src="dungeons/dungeon.js"></script>
+    <script src="dungeons/dungeon1.js"></script>
+    <script src="dungeons/dungeon2.js"></script>
+    <script src="dungeons/dungeon3.js"></script>
+    <script src="dungeons/dungeon4.js"></script>
+    <script src="dungeons/dungeon5.js"></script>
+    <script src="dungeons/dungeon6.js"></script>
+    <script src="dungeons/dungeon7.js"></script>
+    <script src="dungeons/dungeon8.js"></script>
+    <script src="dungeons/dungeon9.js"></script>
+    <script src="dungeons/overworld.js"></script>
+
+    <script src="actors/actor.js"></script>
+    <script src="actors/enemy.js"></script>
+    <script src="actors/avatar.js"></script>
+    <script src="actors/flyingsword.js"></script>
+    <script src="actors/hurler.js"></script>
+    <script src="actors/hurlerrock.js"></script>
+    <script src="actors/hurlertough.js"></script>
+
+    <script src="actors/aquamentus.js"></script>
+    <script src="actors/archer.js"></script>
+    <script src="actors/archerarrow.js"></script>
+    <script src="actors/archertough.js"></script>
+    <script src="actors/boomerang.js"></script>
+    <script src="actors/magicalboomerang.js"></script>
+    <script src="actors/bomb.js"></script>
+    <script src="actors/boulder.js"></script>
+    <script src="actors/bow.js"></script>
+    <script src="actors/bubble.js"></script>
+    <script src="actors/cave.js"></script>
+    <script src="actors/caveexit.js"></script>
+    <script src="actors/charger.js"></script>
+    <script src="actors/chargersword.js"></script>
+    <script src="actors/chargertough.js"></script>
+    <script src="actors/cloud.js"></script>
+    <script src="actors/compass.js"></script>
+    <script src="actors/darknut.js"></script>
+    <script src="actors/digger.js"></script>
+    <script src="actors/diggerblue.js"></script>
+    <script src="actors/dodongo.js"></script>
+    <script src="actors/fire.js"></script>
+    <script src="actors/fireball.js"></script>
+    <script src="actors/flyingboomerang.js"></script>
+    <script src="actors/gel.js"></script>
+    <script src="actors/ghost.js"></script>
+    <script src="actors/goriya.js"></script>
+    <script src="actors/goriyablue.js"></script>
+    <script src="actors/jumper.js"></script>
+    <script src="actors/jumpertough.js"></script>
+    <script src="actors/keese.js"></script>
+    <script src="actors/key.js"></script>
+    <script src="actors/kraken.js"></script>
+    <script src="actors/lakefairy.js"></script>
+    <script src="actors/lakesand.js"></script>
+    <script src="actors/lockeddoor.js"></script>
+    <script src="actors/manhandla.js"></script>
+    <script src="actors/manhandlalimb.js"></script>
+    <script src="actors/map.js"></script>
+    <script src="actors/moldorm.js"></script>
+    <script src="actors/obstacle.js"></script>
+    <script src="actors/oldman.js"></script>
+    <script src="actors/peahat.js"></script>
+    <script src="actors/pushableblock.js"></script>
+    <script src="actors/raft.js"></script>
+    <script src="actors/raftlaunch.js"></script>
+    <script src="actors/roomdarkener.js"></script>
+    <script src="actors/rope.js"></script>
+    <script src="actors/secretbomb.js"></script>
+    <script src="actors/secretheartcontainer.js"></script>
+    <script src="actors/secretkey.js"></script>
+    <script src="actors/secretrupee.js"></script>
+    <script src="actors/stalfos.js"></script>
+    <script src="actors/stairs.js"></script>
+    <script src="actors/startscreen.js"></script>
+    <script src="actors/statue.js"></script>
+    <script src="actors/text.js"></script>
+    <script src="actors/trap.js"></script>
+    <script src="actors/treasure.js"></script>
+    <script src="actors/triforcepiece.js"></script>
+    <script src="actors/wallmaster.js"></script>
+    <script src="actors/water.js"></script>
+    <script src="actors/whitebrickroom.js"></script>
+    <script src="actors/zol.js"></script>
+
+    <script src="actors/barreddoor.js"></script>
+    <script src="actors/block.js"></script>
+    <script src="actors/bombhole.js"></script>
+
+    <link rel='stylesheet' type='text/css' href='//fonts.googleapis.com/css?family=Press+Start+2P'>
+
+    <script src="js/heightmap.js"></script>
 
 </head>
 <body>

@@ -1,0 +1,152 @@
+<html>
+<head>
+<title>(WebGL)index_test</title>
+
+<script id="vertex-shader-2d" type="notjs">
+/////////////////////////////////////////////////////////////////////////
+  // バッファーからデータを取る属性
+  attribute vec4 a_position;
+ 
+  // 全てのシェーダーは「main」の関数がある
+  void main() {
+ 
+    // 特別の変数「gl_Position」を割り当てることは頂点シェーダーの役割である
+    gl_Position = a_position;
+  }
+</script>
+
+<script id="fragment-shader-2d" type="x-shader/x-fragment">
+	///////////////////////////////////////////////////////////////////////////////
+	// フラグメントシェーダーは既定の精度がないので選択することが必要である。
+	// 「mediump」は一般的な既定の設定である。それは「中間の精度」の意味である。
+	precision mediump float;
+	 
+	void main() {
+	  // 特別の変数「gl_FragColor」を割り当てることは
+	  // フラグメントシェーダーの役割である
+	  gl_FragColor = vec4(1, 0, 0.5, 1); // 赤紫
+	}
+
+
+</script>
+
+<script type="text/javascript">
+//////////////////////////////////////////////////////////////////////////////
+//|
+//|次に、シェーダーを作成し、GLSLのコードをアップロードし、
+//|シェーダーをコンパイルする関数が必要である。
+function createShader(gl, type, source) 
+{
+	///////////////////////////////////////////////////////////////////
+	// シェーダーを作成
+	var shader = gl.createShader(type);
+	/////////////////////////////////////////////////////////////////
+	// GLSLのコードをGPUにアップロード
+	gl.shaderSource(shader, source);
+	////////////////////////////////////////////////////////////////
+	// シェーダーをコンパイル
+	gl.compileShader(shader);
+	//////////////////////////////////////////////////////////////////
+	// 成功かどうかチェック
+	var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+	if (success) {
+		return shader; // 成功。シェーダーを返す
+	}
+	/////////////////////////////////////////////////////////////////
+	// エラーを表示
+	console.log(gl.getShaderInfoLog(shader));
+	// シェーダーを削除
+	gl.deleteShader(shader);
+}
+///////////////////////////////////////////////////////////////////
+//|
+//|
+function createProgram(gl, vertexShader, fragmentShader)
+{
+	// プログラムを作成
+	var program = gl.createProgram();
+	// プログラムに頂点シェーダーを付ける
+	gl.attachShader(program, vertexShader);
+	// プログラムにフラグメントシェーダーを付ける
+	gl.attachShader(program, fragmentShader);
+	// プログラムをリンクする
+	gl.linkProgram(program);
+	// 成功かどうかチェック
+	var success = gl.getProgramParameter(program, gl.LINK_STATUS);
+	if (success) {
+		return program;  // 成功。プログラムを返す
+	}
+
+	// エラーを表示
+	console.log(gl.getProgramInfoLog(program));
+	// プログラムを削除
+	gl.deleteProgram(program);
+}
+</script>
+
+
+
+
+</head>
+
+<body>
+
+yinfotech.s312.xrea.com
+
+<canvas id="canvas" width="300" height="200"></canvas>
+
+
+<script type="text/javascript">
+////////////////////////////////////////////////////////////////////////////////////////////////
+//
+function render(gl) {
+	gl.clearColor(0, 0, 0.5, 1.0);
+	gl.clear(gl.COLOR_BUFFER_BIT);
+	gl.drawArrays(gl.POINTS, 0, 1);
+}
+/////////////////////////////////////////////////////////////////////////////////////////////
+//
+function main()
+{
+	const canvas = document.getElementById('canvas');
+	const gl = canvas.getContext('webgl2');
+	if (!gl) {
+		console.error('Failed to obtain WebGL context');
+		return;
+	}else{
+		console.log('Success to obtain WebGL context');
+	}
+
+	gl.clearColor(0, 0, 0.5, 1.0);  // RGBA（暗い青）
+	gl.clear(gl.COLOR_BUFFER_BIT);
+
+	///////////////////////////////////////////////////////////////////////////////////////
+	//|
+	//|出来たら、その関数でシェーダー２つを作成出来る
+	var vertexShaderSource = document.querySelector("#vertex-shader-2d").text;
+	var fragmentShaderSource = document.querySelector("#fragment-shader-2d").text;
+	///////////////////////////////////////////////////////////////////////////////////////
+	console.log(vertexShaderSource);
+	/////////////////////////////////////////////////////////////////////////////////////
+	//
+	var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
+	var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+	/////////////////////////////////////////////////////////////////////////////////////
+	//
+	var program = createProgram(gl, vertexShader, fragmentShader);
+	/////////////////////////////////////////////////////////////////////////////////////
+	//
+	var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+	//////////////////////////////////////////////////////////////////////////////////////
+	gl.useProgram(program);
+
+	render(gl);
+}
+
+window.addEventListener('load', main);
+
+</script>
+
+
+</body>
+</html>
